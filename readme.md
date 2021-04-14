@@ -35,7 +35,8 @@
 4. AnalyzeRepositoryの実行可能jarを`mvn package`でビルド。
     - メインクラスはsrc/main/java/Main.java
     - [楠本研サーバthor](https://github.com/kusumotolab/sdllog/blob/master/articles/%E3%82%B5%E3%83%BC%E3%83%90.md)(openjdk 11.0.10 2021-01-19)で動作確認済み。
-5. `java -jar ${ビルドされたjar} --pathProject ${プロジェクトフォルダのパス} --idCommitHead ${最新コミットID}`を実行。最新コミットについては、本ファイル下部の各種コミット一覧を参照。
+5. `java -jar ${ビルドされたjar} --pathProject ${プロジェクトフォルダのパス} --idCommitHead ${最新コミットID}`を実行。
+    - 最新コミットidについては、本ファイル下部の各種コミット一覧を参照。
     - 結果として、プロジェクトフォルダ内にmodules.json及びcommits/${commitID}.jsonが生成される。
     - このとき、下記のようなフォルダ構成になっているはず。
         - ${プロジェクトフォルダ}
