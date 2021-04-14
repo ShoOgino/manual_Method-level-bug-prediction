@@ -30,7 +30,7 @@
         - datasets（フォルダ）
         - commits（フォルダ）
         - bugs.json
-3. ソースコードのリネーム追跡部分を書き換え。
+3. AnalyzeRepositoryのリネーム追跡部分を書き換え。
     - 該当箇所はsrc/main/java/Commits.java内のloadCommits()のみ。
 4. AnalyzeRepositoryの実行可能jarを`mvn package`でビルド。
     - メインクラスはsrc/main/java/Main.java
