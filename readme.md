@@ -84,7 +84,8 @@
 ### 6. データセットをもとに、バグ予測モデルを構築＋評価
 - [MLTool](https://github.com/ShoOgino/MLTool)を用いる。MLToolのReadmeを参照のこと…
     - 実行環境は[楠本研サーバthor](https://github.com/kusumotolab/sdllog/blob/master/articles/%E3%82%B5%E3%83%BC%E3%83%90.md)上のdockerコンテナ(id: 578a599c9b0b, name: mltool)上に構築してある。`sudo docker exec -it mltool ash`で中に入れる。
-
+    - ハイパーパラメータ探索に費やす時間は1時間くらいでいい。
+    - 
 ## 対象プロジェクトのリポジトリ一覧
 - cassandra
     - [cassandraFile](https://github.com/apache/cassandra.git)
