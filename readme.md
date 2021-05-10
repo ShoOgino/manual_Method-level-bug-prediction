@@ -2,10 +2,9 @@
 ## 概要
 1. リポジトリをファイル粒度からメソッド粒度へ変換
 2. bugfixコミット・bugintroコミットを特定(手順4のため)
-3. **開発履歴データをファイルとして書き出す（手順4のため）**
-4. メソッドについて各種メトリクスを算出。
-5. メトリクスを整形して、データセットを構築する。
-6. データセットをもとに、バグ予測モデルを構築＋評価
+3. メソッドについて各種メトリクスを算出。
+4. メトリクスを整形して、データセットを構築する。
+5. データセットをもとに、バグ予測モデルを構築＋評価
 
 リネーム追跡が関わる操作は3だけ。だから、章良は3で利用するツールを書き換えてコンパイル後することになる。3以外の操作は手順に沿うだけで良いはず。
 
@@ -15,61 +14,63 @@
     - 本ファイル下部の「対象プロジェクトのリポジトリ一覧」を参照。
 
 
-### 2. bugfixコミット・bugintroコミットを算出(手順4のため)
+### 2. bugfixコミット・bugintroコミットを算出
 - リネーム追跡と関係ないから、俺が算出したやつを使えばok。
     - https://github.com/ShoOgino/bugs.git
 
 
-### 3. 開発履歴データをファイルとして書き出す（手順4のため）
+### 3. メソッドについて各種メトリクスを算出（データセットを作る）
 1. [AnalyzeRepository](https://github.com/ShoOgino/AnalyzeRepository.git)をgit clone。
-2. プロジェクトフォルダを作り、フォルダ構成を下記の通りにする。
+2. プロジェクトフォルダを作り、ディレクトリ構成を下記の通りにする。
     - ${プロジェクトフォルダ}
         - repositoryMethod(メソッド粒度のリポジトリフォルダ)
         - repositoryFile(ファイル粒度のリポジトリフォルダ)
-        - datasets（フォルダ）
-        - commits（フォルダ）
         - bugs.json
 3. AnalyzeRepositoryのリネーム追跡部分を書き換え。
-    - 該当箇所はsrc/main/java/Commits.java内のloadCommits()のみ。
-4. AnalyzeRepositoryの実行可能jarを`mvn package`でビルド。
-    - メインクラスはsrc/main/java/Main.java
-    - [楠本研サーバthor](https://github.com/kusumotolab/sdllog/blob/master/articles/%E3%82%B5%E3%83%BC%E3%83%90.md)(openjdk 11.0.10 2021-01-19)で動作確認済み。
-5. `java -jar ${ビルドされたjar} --pathProject ${プロジェクトフォルダのパス} --idCommitHead ${最新コミットID}`を実行。
-    - 最新コミットidについては、本ファイル下部の各種コミット一覧を参照。
-    - 結果として、プロジェクトフォルダ内にmodules.json及びcommits/${commitID}.jsonが生成される。
-    - このとき、下記のようなフォルダ構成になっているはず。
+4. AnalyzeRepositoryの実行可能jarを`./gradlew shadowJar`でビルド。
+    - [楠本研サーバthor](https://github.com/kusumotolab/sdllog/blob/master/articles/%E3%82%B5%E3%83%BC%E3%83%90.md)(openjdk version "1.8.0_292")で動作確認済み。
+5. java -jar ${ビルドされたjar}<br>
+    --pathProject ${プロジェクトフォルダのパス}<br>
+    --idCommitHead ${headコミットid(メソッド粒度の方)}<br>
+    --commitEdgesMethod ${コミットid(メソッド粒度の方)。対象期間の始端を表す} ${コミットid(メソッド粒度の方)。対象期間の終端を表す} ${コミットid。このコミットまでに実行されたbugfixコミットを参照する(メソッド粒度の方)}<br>
+    --commitEdgesFile ${コミットid(ファイル粒度の方)。対象期間の始端を表す} ${コミットid(ファイル粒度の方)。対象期間の終端を表す}<br>
+    を実行。
+    - 俺の研究と同様の予測(release-by-release方式の予測)をする場合
+        - リリースコミットorルートコミットから次のリリースコミットまでを対象期間とする。
+            - 対象プロジェクトのリリースコミットについては本ファイル下部の各種コミット一覧を参照。
+        - 対象期間AについてデータセットAを構築し、対象期間BについてデータセットBを構築し、データセットAをモデル訓練用、データセットBをテスト用に用いる。
+            - 対象期間Aは対象期間Bより過去の期間とする（駄目な例:対象期間A＝R1~R2, 対象期間B＝root~R1）。
+        - コマンド例: egitについて、root~R1を学習用、R1~R2をテスト用とする時
+            - 学習用データセットを算出
+                - java -jar ${ビルドされたjar}<br>
+                --pathProject ${プロジェクトフォルダのパス}<br>
+                --idCommitHead b459d7381ea57e435bd9b71eb37a4cb4160e252b<br>
+                --commitEdgesMethod 2c1b0f4ad24fb082e5eb355e912519c21a5e3f41 1241472396d11fe0e7b31c6faf82d04d39f965a6<br>
+                --commitEdgesFile dfbdc456d8645fc0c310b5e15cf8d25d8ff7f84b 0cc8d32aff8ce91f71d2cdac8f3e362aff747ae7<br>
+            - テスト用データセットを算出
+                - java -jar ${ビルドされたjar}<br>
+                --pathProject ${プロジェクトフォルダのパス}<br>
+                --idCommitHead b459d7381ea57e435bd9b71eb37a4cb4160e252b<br>
+                --commitEdgesMethod 1241472396d11fe0e7b31c6faf82d04d39f965a6 2774041935d41453e5080f0e3cbeef136a05597d<br>
+                --commitEdgesFile 0cc8d32aff8ce91f71d2cdac8f3e362aff747ae7 1f07f085d6bcae0caf372fffec19583ac5615d3b<br>
+    - 結果として、下記のようなディレクトリ構成になっているはず。
         - ${プロジェクトフォルダ}
             - repositoryMethod(メソッド粒度のリポジトリフォルダ)
             - repositoryFile(ファイル粒度のリポジトリフォルダ)
-            - datasets（フォルダ）
-            - commits（フォルダ）
-                - ${コミットid}.json
-            - modules.json
+            - datasets
+                - ${対象期間のメソッドについてのデータセット}.csv
             - bugs.json
 
-
-### 4. 説明変数・目的変数用の各種メトリクスを算出（データセットを作る）
-[calcMetrics](https://github.com/ShoOgino/calcMetrics.git)を用いる。
-#### 実行手順
-1. [calcMetrics](https://github.com/ShoOgino/calcMetrics.git)をgit clone。
-2. calcMetricsの実行可能jarをビルド。
-    - 死ぬほど面倒くさいから、[ビルド済みのやつ](https://github.com/ShoOgino/calcMetrics/blob/master/calcMetrics.jar)を使うべき。
-        - [楠本研サーバthor](https://github.com/kusumotolab/sdllog/blob/master/articles/%E3%82%B5%E3%83%BC%E3%83%90.md)(openjdk 11.0.10 2021-01-19)で動作確認済み。
-3. `java -jar ${ビルドされたjar} --pathProject ${プロジェクトフォルダのパス} --commitEdgesMethod ${対象期間の始端を表すコミット（メソッド粒度リポジトリの方）} ${対象期間の終端を表すコミット（メソッド粒度リポジトリの方）} --commitEdgesFile ${対象期間の始端を表すコミット（ファイル粒度リポジトリの方）} ${対象期間の終端を表すコミット（ファイル粒度リポジトリの方）}`を実行。
-    - 俺の研究と同様の予測(release-by-release方式の予測)をする場合
-      - 対象期間とはリリースコミットorルートコミットから次のリリースコミットまでのことを指す。
-        - なお、各プログラムのリリースコミットについては本ファイル下部の各種コミット一覧を参照。
-      - そのような対象期間AについてデータセットAを構築し、対象期間BについてデータセットBを構築し、データセットAをモデル訓練用、データセットBをモデル評価用に用いる。
-        - 対象期間Aは対象期間Bより過去の期間。
-    - 結果として、プロジェクトフォルダ内にdatasets/${対象期間のメソッドについてのデータセット}.csvが生成される。
-
-
-### 5. データセット前処理
+### 4. データセット前処理
 [MLTool](https://github.com/ShoOgino/MLTool.git)を用いる。
 #### 実行手順
 1. [MLTool](https://github.com/ShoOgino/MLTool.git)をgit clone。
-2. `python MLTool/actions/src/splitDataset.py --dataset4train ${訓練用データセット.csvのパス} --dataset4test ${テスト用データセット.csvのパス} --destination ${前処理の終わったデータセットを保存するディレクトリ}`を実行。
-    - 結果として、${destination}に下記のファイルが生成される。
+2. python MLTool/actions/src/splitDataset.py <br>
+--dataset4train ${訓練用データセット.csvのパス} <br>
+--dataset4test ${テスト用データセット.csvのパス} <br>
+--destination ${前処理の終わったデータセットを保存するディレクトリ}<br>
+を実行。
+    - 結果として、${前処理の終わったデータセットを保存するディレクトリ}に下記のファイルが生成される。
         - train0.json
         - train1.json
         - train2.json
@@ -82,12 +83,11 @@
         - valid4.json
         - test.json
 
-
-### 6. データセットをもとに、バグ予測モデルを構築＋評価
+### 5. データセットをもとに、バグ予測モデルを構築＋評価
 - [MLTool](https://github.com/ShoOgino/MLTool)を用いる。MLToolのReadmeを参照のこと…
     - 実行環境は[楠本研サーバthor](https://github.com/kusumotolab/sdllog/blob/master/articles/%E3%82%B5%E3%83%BC%E3%83%90.md)上のdockerコンテナ(id: 578a599c9b0b, name: mltool)上に構築してある。`sudo docker exec -it mltool ash`で中に入れる。
     - ハイパーパラメータ探索に費やす時間は1時間くらいでいい。
-    - 
+
 ## 対象プロジェクトのリポジトリ一覧
 - cassandra
     - [cassandraFile](https://github.com/apache/cassandra.git)
@@ -134,7 +134,7 @@
     - 1: 古すぎてgithubに記録されていない
     - root: 2001/06/05 16:17:58
         - file: be6c0d208933ac936a6ccb6c66b03d3da13e3796
-        - method: be6c0d208933ac936a6ccb6c66b03d3da13e3796
+        - method: a7fce940d379c2e5e244d9ddaf1acb77c5df6fe5
     - 2: 2002/06/26 17:54:29
         - file: d0dd6c20e4958b2e8f8c4f7f60f4a15fff6ca500
         - method: ba370a9c7ffb041448d1d6f1b3ed0bcf4b2f36f5
@@ -261,35 +261,16 @@
         - method: 81a0a25199ccb15c5c2e4637d0f498b0300e5b3c
     - 3: 2007/05/7 17:09:31
         - file: 8ffd79b36803be29486ab6bdeff5dd02ea901927
-        - method: 99b9b7828cb268f62daa5b0c5639e549477b2c6f
-    - 4: 2018/08/31 12:09:06
-        - file: 37a74b4a8de772cde9788a6a8c2ae3c0862d31f3
         - method: cc1cd7f005bc2379449439427d2c0acef7cd932a
+    - 4: 2018/08/31 12:09:06
+        - file: 99b9b7828cb268f62daa5b0c5639e549477b2c6f
+        - method: 37a74b4a8de772cde9788a6a8c2ae3c0862d31f3
     - head: 
         - file: 382714eccd92667fc83f70115b736c64ebff9700
         - method: 449f08fc0003c64d09663715f28896a4dd010d6a
-- wicket(1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 6, 7, 8, 9) 16ヶ年＋20日
-    - root: 2004/09/21 15:10:53
-        - file: f92c2a5ad87198c9e446b271a713942bb89d89d2
-        - method: f92c2a5ad87198c9e446b271a713942bb89d89d2
-    - 1.0: 
-        - file: afc0d1bf78d14bbd73c640d267f6cc4fd18e03c4
-        - method: 8c914f05c3d9f09e9b737c58ad7419c531464042
-    - 1.1:
-        - file: 0461913b5847a2e33d45900b47667c7776aaa40a
-        - method: b31fbaff20e4c5a2ca6c2c31e270e7289f15bfd7
-    - 1.2:
-        - file: 15c13da6de89aa440a2f1f3e79032aaee269fdb5
-        - method: cd4a650b7fe375e36bb4cbe834970222a6de746a
-    - 1.3:
-        - file: 234d1a68d2963d80234d12eb104ae5823c8e7e7a
-        - method: 27356766b9230a5f06cc3a6c70ee745ea3446e74
-    - 1.4: 2009/06/23 16:20:43
-        - file: 151483842119baca2cc43d06565c655aad3afdb2
-        - method: f440cd92b1f3dfed8c00903c9a34bad5ef576a03
-    - 1.5: 2011/08/24 15:05:45
-        - file: 81d13286fccddbea7e0add46f910e11c171d4d26
-        - method: 1327cb23c4dd7549699511a4860c0bfa6e8e1c2d
+- wicket(6, 7, 8) 16ヶ年＋20日
+    - 1.0.0~1.5.0はスキップすべき。
+        - セマンティックバージョニングで管理されていないから。
     - 6: 2012/08/23 22:29:55
         - file: 01b3c702bc33f53af45c60b8a8dc1c45a675ff2c
         - method: 80bb2dbc0f0f8b4f89ba463f9886495f23f79e9b
