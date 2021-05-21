@@ -34,6 +34,7 @@
     --idCommitHead ${headコミットid(メソッド粒度の方)}<br>
     --commitEdgesMethod ${コミットid(メソッド粒度の方)。対象期間の始端を表す} ${コミットid(メソッド粒度の方)。対象期間の終端を表す} ${コミットid。このコミットまでに実行されたbugfixコミットを参照する(メソッド粒度の方)}<br>
     --commitEdgesFile ${コミットid(ファイル粒度の方)。対象期間の始端を表す} ${コミットid(ファイル粒度の方)。対象期間の終端を表す}<br>
+    --calcMetrics<br>
     を実行。
     - 俺の研究と同様の予測(release-by-release方式の予測)をする場合
         - リリースコミットorルートコミットから次のリリースコミットまでを対象期間とする。
@@ -47,12 +48,14 @@
                 --idCommitHead b459d7381ea57e435bd9b71eb37a4cb4160e252b<br>
                 --commitEdgesMethod 2c1b0f4ad24fb082e5eb355e912519c21a5e3f41 1241472396d11fe0e7b31c6faf82d04d39f965a6<br>
                 --commitEdgesFile dfbdc456d8645fc0c310b5e15cf8d25d8ff7f84b 0cc8d32aff8ce91f71d2cdac8f3e362aff747ae7<br>
+                --calcMetrics<br>
             - テスト用データセットを算出
                 - java -jar ${ビルドされたjar}<br>
                 --pathProject ${プロジェクトフォルダのパス}<br>
                 --idCommitHead b459d7381ea57e435bd9b71eb37a4cb4160e252b<br>
                 --commitEdgesMethod 1241472396d11fe0e7b31c6faf82d04d39f965a6 2774041935d41453e5080f0e3cbeef136a05597d<br>
                 --commitEdgesFile 0cc8d32aff8ce91f71d2cdac8f3e362aff747ae7 1f07f085d6bcae0caf372fffec19583ac5615d3b<br>
+                --calcMetrics<br>
     - 結果として、下記のようなディレクトリ構成になっているはず。
         - ${プロジェクトフォルダ}
             - repositoryMethod(メソッド粒度のリポジトリフォルダ)
