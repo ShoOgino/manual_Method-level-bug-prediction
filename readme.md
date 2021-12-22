@@ -1,12 +1,11 @@
 # メソッド粒度バグ予測手順書
 ## 概要
 1. リポジトリをファイル粒度からメソッド粒度へ変換
-2. bugfixコミット・bugintroコミットを特定(手順4のため)
-3. メソッドについて各種メトリクスを算出。
-4. メトリクスを整形して、データセットを構築する。
-5. データセットをもとに、バグ予測モデルを構築＋評価
+2. バグ修正コミット・バグ混入コミットを特定
+3. 学習用データセット・評価用データセットを構築
+4. データセットに基づいて、バグ予測モデルを構築＋評価
 
-リネーム追跡が関わる操作は3だけ。だから、章良は3で利用するツールを書き換えてコンパイル後することになる。3以外の操作は手順に沿うだけで良いはず。
+
 
 ## 詳細
 ### 1. リポジトリをファイル粒度からメソッド粒度へ変換
@@ -14,12 +13,13 @@
     - 本ファイル下部の「対象プロジェクトのリポジトリ一覧」を参照。
 
 
-### 2. bugfixコミット・bugintroコミットを算出
-- リネーム追跡と関係ないから、俺が算出したやつを使えばok。
-    - https://github.com/ShoOgino/bugs.git
+
+### 2. バグ修正コミット・バグ混入コミットを特定
+- [SZZアルゴリズムの実装](https://github.com/ShoOgino/szz/tree/master/tools/szz)を用いる。
 
 
-### 3. メソッドについて各種メトリクスを算出（データセットを作る）
+
+### 3. 学習用データセット・評価用データセットを構築
 1. [AnalyzeRepository](https://github.com/ShoOgino/AnalyzeRepository.git)をgit clone。
 2. プロジェクトフォルダを作り、ディレクトリ構成を下記の通りにする。
     - ${プロジェクトフォルダ}
@@ -29,43 +29,37 @@
 3. AnalyzeRepositoryのリネーム追跡部分を書き換え。
 4. AnalyzeRepositoryの実行可能jarを`./gradlew shadowJar`でビルド。
     - [楠本研サーバthor](https://github.com/kusumotolab/sdllog/blob/master/articles/%E3%82%B5%E3%83%BC%E3%83%90.md)(openjdk version "1.8.0_292")で動作確認済み。
-5. java -jar ${ビルドされたjar}<br>
-    --pathProject ${プロジェクトフォルダのパス}<br>
-    --pathCommitIDs ${算出区間を特定するコミットIDが記載されたcsvのパス}
-    を実行。
-    - csvの各行には、以下の要素を記載する。
-        - パターン名
-        - 対象期間の始端を表すコミットID(ファイル粒度)
-        - 対象期間の終端を表すコミットID(ファイル粒度)
-        - 対象期間の始端を表すコミットID(メソッド粒度)
-        - 対象期間の終端を表すコミットID(メソッド粒度)
+5. java -jar ${ビルドされたjar} ${データセット算出タスク}.json を実行。
+    - データセット算出タスク.jsonは用意してます。
+        - 
+    - データセット算出タスク.jsonは、下記のデータ構造をとる。
+        - isMultiProcess
+        - tasks: タスク集合。
+            - (task): データセット算出タスク。下記のプロパティで規定される。
+                - name: String。タスクの名前。算出するデータセットの特徴を書けばよい。egit_R2_trainとか。
+                - priority: int。タスクの優先度。特に重要ではない。0でOK。
+                - pathProject: String。プロジェクトフォルダのパス。例えば"C:\\Users\\login\\data\\workspace\\MLTool\\datasets\\egit"。
+                - granularity: String。予測粒度。"method"でおｋ．
+                - product: List<String>。モジュールについて、なんのデータを算出するか。["metricsProcess", "metricsCode"]でおｋ。
+                - revisionTargetMethod: String。method粒度リポジトリのどのバージョンで存在するメソッドについて、レコードを算出するか。
+                - intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture: List<String>。未来の情報に依存しないメトリクス(numOfCommitters等)を算出する際に参照可能な、開発履歴の区間。method粒度リポジトリについて。
+                    - intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture[0]: 区間の始まり。コミットID。
+                    - intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture[1]: 区間の終わり。コミットID。
+                - intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture: List<String>。未来の情報に依存するメトリクス(isBuggy等)を算出する際に参照可能な、開発履歴の区間。method粒度リポジトリについて。
+                    - intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture[0]: 区間の始まり。コミットID。
+                    - intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture[1]: 区間の始まり。コミットID。
+                - revisionTargetFile": revisionTargetMethodのファイル粒度リポジトリ版。
+                - intervalRevisionFile_referableCalculatingMetricsIndependentOnFuture: intervalRevisionMethod_referableCalculatingMetricsIndependentOnFutureのファイル粒度リポジトリ版
+                - intervalRevisionFile_referableCalculatingMetricsDependentOnFuture: intervalRevisionMethod_referableCalculatingMetricsDependentOnFutureのファイル粒度リポジトリ版。
 
-### 4. データセット前処理
-[MLTool](https://github.com/ShoOgino/MLTool.git)を用いる。
-#### 実行手順
-1. [MLTool](https://github.com/ShoOgino/MLTool.git)をgit clone。
-2. python MLTool/actions/src/splitDataset.py <br>
---dataset4train ${訓練用データセット.csvのパス} <br>
---dataset4test ${テスト用データセット.csvのパス} <br>
---destination ${前処理の終わったデータセットを保存するディレクトリ}<br>
-を実行。
-    - 結果として、${前処理の終わったデータセットを保存するディレクトリ}に下記のファイルが生成される。
-        - train0.json
-        - train1.json
-        - train2.json
-        - train3.json
-        - train4.json
-        - valid0.json
-        - valid1.json
-        - valid2.json
-        - valid3.json
-        - valid4.json
-        - test.json
 
-### 5. データセットをもとに、バグ予測モデルを構築＋評価
+
+### 4. データセットに基づいて、バグ予測モデルを構築＋評価
 - [MLTool](https://github.com/ShoOgino/MLTool)を用いる。MLToolのReadmeを参照のこと…
     - 実行環境は[楠本研サーバthor](https://github.com/kusumotolab/sdllog/blob/master/articles/%E3%82%B5%E3%83%BC%E3%83%90.md)上のdockerコンテナ(id: 578a599c9b0b, name: mltool)上に構築してある。`sudo docker exec -it mltool ash`で中に入れる。
     - ハイパーパラメータ探索に費やす時間は1時間くらいでいい。
+
+
 
 ## 対象プロジェクトのリポジトリ一覧
 - cassandra
