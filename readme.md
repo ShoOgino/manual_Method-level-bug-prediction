@@ -1,9 +1,10 @@
 # メソッド粒度バグ予測手順書
 ## 概要
 1. リポジトリをファイル粒度からメソッド粒度へ変換
-2. バグ修正コミット・バグ混入コミットを特定
-3. 学習用データセット・評価用データセットを構築
-4. データセットに基づいて、バグ予測モデルを構築＋評価
+2. メソッド粒度リポジトリにおける、バグ修正コミット・バグ混入コミットを特定
+3. 学習用・評価用データセットを構築
+4. 学習用データセットに基づいて、バグ予測モデルを構築
+5. 評価用データセットに基づいて、バグ予測モデルを評価
 
 
 
@@ -19,8 +20,8 @@
 
 
 
-### 3. 学習用データセット・評価用データセットを構築
-1. [AnalyzeRepository](https://github.com/ShoOgino/AnalyzeRepository.git)をgit clone。
+### 3. 学習用・評価用データセットを構築
+1. [AnalyzeRepository](https://github.com/ShoOgino/RepositoryAnalyzer_private)をgit clone。
 2. プロジェクトフォルダを作り、ディレクトリ構成を下記の通りにする。
     - ${プロジェクトフォルダ}
         - repositoryMethod(メソッド粒度のリポジトリフォルダ)
@@ -29,35 +30,57 @@
 3. AnalyzeRepositoryのリネーム追跡部分を書き換え。
 4. AnalyzeRepositoryの実行可能jarを`./gradlew shadowJar`でビルド。
     - [楠本研サーバthor](https://github.com/kusumotolab/sdllog/blob/master/articles/%E3%82%B5%E3%83%BC%E3%83%90.md)(openjdk version "1.8.0_292")で動作確認済み。
-5. java -jar ${ビルドされたjar} ${データセット算出タスク}.json を実行。
-    - データセット算出タスク.jsonは用意してます。
-        - 
-    - データセット算出タスク.jsonは、下記のデータ構造をとる。
-        - isMultiProcess
+5. データセット算出タスクを定義したjsonをプロジェクトフォルダ直下に用意。
+    - 下記の${データセット算出タスク}.jsonを、pathProjectを書き換えて使えばOK。
+        - [cassandra]()
+        - [eclipse.jdt.core]()
+        - [egit](egit.json)
+        - [jgit]()
+        - [linuxtools]()
+        - [lucene-solr]()
+        - [poi]()
+        - [wicket]()
+    - ${データセット算出タスク}.jsonの構造は下記の通り。
+        - isMultiProcess: 並列処理をするかどうか。trueでいい。
         - tasks: タスク集合。
             - (task): データセット算出タスク。下記のプロパティで規定される。
                 - name: String。タスクの名前。算出するデータセットの特徴を書けばよい。egit_R2_trainとか。
-                - priority: int。タスクの優先度。特に重要ではない。0でOK。
-                - pathProject: String。プロジェクトフォルダのパス。例えば"C:\\Users\\login\\data\\workspace\\MLTool\\datasets\\egit"。
+                - priority: int。タスクの優先度。0でOK。
+                - pathProject: String。プロジェクトフォルダのパス。例えば"C:\\Users\\ShoOgino\\data\\workspace\\MLTool\\datasets\\egit"。
                 - granularity: String。予測粒度。"method"でおｋ．
                 - product: List<String>。モジュールについて、なんのデータを算出するか。["metricsProcess", "metricsCode"]でおｋ。
-                - revisionTargetMethod: String。method粒度リポジトリのどのバージョンで存在するメソッドについて、レコードを算出するか。
-                - intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture: List<String>。未来の情報に依存しないメトリクス(numOfCommitters等)を算出する際に参照可能な、開発履歴の区間。method粒度リポジトリについて。
-                    - intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture[0]: 区間の始まり。コミットID。
-                    - intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture[1]: 区間の終わり。コミットID。
-                - intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture: List<String>。未来の情報に依存するメトリクス(isBuggy等)を算出する際に参照可能な、開発履歴の区間。method粒度リポジトリについて。
-                    - intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture[0]: 区間の始まり。コミットID。
-                    - intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture[1]: 区間の始まり。コミットID。
+                - revisionTargetMethod: String。method粒度リポジトリのどの時点で存在するメソッドについて、レコードを算出するか。
+                - intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture: List<String>。未来の情報に依存しないメトリクス(LOCとかnumOfCommittersとか)を算出する際に参照可能な、開発履歴の区間。method粒度リポジトリについて。
+                    - intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture[0]: 参照区間の始まり。コミットID。
+                    - intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture[1]: 参照区間の終わり。コミットID。
+                - intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture: List<String>。未来の情報に依存するメトリクス(isBuggyとか)を算出する際に参照可能な、開発履歴の区間。method粒度リポジトリについて。
+                    - intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture[0]: 参照区間の始まり。コミットID。
+                    - intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture[1]: 参照区間の終わり。コミットID。
                 - revisionTargetFile": revisionTargetMethodのファイル粒度リポジトリ版。
                 - intervalRevisionFile_referableCalculatingMetricsIndependentOnFuture: intervalRevisionMethod_referableCalculatingMetricsIndependentOnFutureのファイル粒度リポジトリ版
                 - intervalRevisionFile_referableCalculatingMetricsDependentOnFuture: intervalRevisionMethod_referableCalculatingMetricsDependentOnFutureのファイル粒度リポジトリ版。
+6. java -jar ${ビルドされたjar} ${データセット算出タスク}.json を実行。
+    - 実行後のフォルダ構成は次のようになる。
+        - ${プロジェクトフォルダ}
+            - repositoryMethod(メソッド粒度のリポジトリフォルダ)
+            - repositoryFile(ファイル粒度のリポジトリフォルダ)
+            - commits
+            - modules
+            - output
+                - ${タスクの名前}: モジュールの分析結果が、モジュールごとにjson形式で収められている
+                - ${タスクの名前}.csv: モジュールのメトリクスが、csv形式で収められている
+            - bugs.json
+            - ${データセット算出タスク}.json
 
-
-
-### 4. データセットに基づいて、バグ予測モデルを構築＋評価
-- [MLTool](https://github.com/ShoOgino/MLTool)を用いる。MLToolのReadmeを参照のこと…
-    - 実行環境は[楠本研サーバthor](https://github.com/kusumotolab/sdllog/blob/master/articles/%E3%82%B5%E3%83%BC%E3%83%90.md)上のdockerコンテナ(id: 578a599c9b0b, name: mltool)上に構築してある。`sudo docker exec -it mltool ash`で中に入れる。
-    - ハイパーパラメータ探索に費やす時間は1時間くらいでいい。
+### 4, 5. データセットに基づいて、バグ予測モデルを構築＋評価
+- [GreedyBugPrediction](https://github.com/ShoOgino/GreedyBugPrediction)を用いる。
+    - メトリクスベースの予測なので、sourcecode\9_codemetrics_processmetrics.pyに記述された下記の設定を書き換えて実行する。
+        - config.pathsDirSampleTrain: 手順3で算出されたフォルダ(output/${タスクの名前})のうち、学習用のもののパスを指定
+        - config.pathsDirSampleTest: 手順3で算出されたフォルダ(output/${タスクの名前})のうち、評価用のもののパスを指定
+        - config.period4HyperParameterSearch: ハイパーパラメータチューニングに費やす時間。秒単位。1時間くらいでいい。
+    - 実行環境
+        - 実行環境のdockerimageは5gbあるので直接渡す。
+        - コンテナ内で conda activate mltool3.8 を実行。
 
 
 

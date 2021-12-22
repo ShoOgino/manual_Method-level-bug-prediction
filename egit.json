@@ -1,0 +1,63 @@
+{
+    "isMultiprocess": false,
+    "tasks": [
+        {
+            "name": "R2_r_train",
+            "priority": 0,
+            "pathProject": "/home/s-ogino/workspace/MLTool/datasets/egit",
+            "granularity": "method",
+            "product": [
+                "commitGraph",
+                "metricsProcess",
+                "metricsCode"
+            ],
+            "revisionTargetFile": "3104c7a3af566617c32172f956eb57d0b135d3bf",
+            "intervalRevisionFile_referableCalculatingMetricsIndependentOnFuture": [
+                "dfbdc456d8645fc0c310b5e15cf8d25d8ff7f84b",
+                "3104c7a3af566617c32172f956eb57d0b135d3bf"
+            ],
+            "intervalRevisionFile_referableCalculatingMetricsDependentOnFuture": [
+                "",
+                "1f07f085d6bcae0caf372fffec19583ac5615d3b"
+            ],
+            "revisionTargetMethod": "4135b00a077f4dd323e8316e444e56a940c80b13",
+            "intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture": [
+                "2c1b0f4ad24fb082e5eb355e912519c21a5e3f41",
+                "4135b00a077f4dd323e8316e444e56a940c80b13"
+            ],
+            "intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture": [
+                "2c1b0f4ad24fb082e5eb355e912519c21a5e3f41",
+                "2774041935d41453e5080f0e3cbeef136a05597d"
+            ]
+        },
+        {
+            "name": "R2_r_test",
+            "priority": 0,
+            "pathProject": "/home/s-ogino/workspace/MLTool/datasets/egit",
+            "granularity": "method",
+            "product": [
+                "commitGraph",
+                "metricsProcess",
+                "metricsCode"
+            ],
+            "revisionTargetFile": "1f07f085d6bcae0caf372fffec19583ac5615d3b",
+            "intervalRevisionFile_referableCalculatingMetricsIndependentOnFuture": [
+                "3104c7a3af566617c32172f956eb57d0b135d3bf",
+                "1f07f085d6bcae0caf372fffec19583ac5615d3b"
+            ],
+            "intervalRevisionFile_referableCalculatingMetricsDependentOnFuture": [
+                "",
+                "08c530ec099610334a4794f7fe7ed33cc619ef4f"
+            ],
+            "revisionTargetMethod": "2774041935d41453e5080f0e3cbeef136a05597d",
+            "intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture": [
+                "4135b00a077f4dd323e8316e444e56a940c80b13",
+                "2774041935d41453e5080f0e3cbeef136a05597d"
+            ],
+            "intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture": [
+                "2c1b0f4ad24fb082e5eb355e912519c21a5e3f41",
+                "b459d7381ea57e435bd9b71eb37a4cb4160e252b"
+            ]
+        }
+    ]
+}
