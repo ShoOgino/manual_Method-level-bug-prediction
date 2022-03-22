@@ -1,15 +1,16 @@
 {
-    "isMultiProcess": false,
+    "isMultiProcess": true,
     "tasks": [
         {
             "name": "R2_r_train",
             "priority": 0,
-            "pathProject": "/home/s-ogino/workspace/MLTool/datasets/egit",
+            "pathProject": "C:\\Users\\login\\data\\workspace\\MLTool\\datasets\\egit",
             "granularity": "method",
             "product": [
-                "commitGraph",
-                "metricsProcess",
-                "metricsCode"
+                "metricsCodeGiger",
+                "metricsCodeMing",
+                "graphCommit",
+                "metricsProcessMing"
             ],
             "revisionTargetFile": "3104c7a3af566617c32172f956eb57d0b135d3bf",
             "intervalRevisionFile_referableCalculatingMetricsIndependentOnFuture": [
@@ -33,12 +34,13 @@
         {
             "name": "R2_r_test",
             "priority": 0,
-            "pathProject": "/home/s-ogino/workspace/MLTool/datasets/egit",
+            "pathProject": "C:\\Users\\login\\data\\workspace\\MLTool\\datasets\\egit",
             "granularity": "method",
             "product": [
-                "commitGraph",
-                "metricsProcess",
-                "metricsCode"
+                "metricsCodeGiger",
+                "metricsCodeMing",
+                "graphCommit",
+                "metricsProcessMing"
             ],
             "revisionTargetFile": "1f07f085d6bcae0caf372fffec19583ac5615d3b",
             "intervalRevisionFile_referableCalculatingMetricsIndependentOnFuture": [

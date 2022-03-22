@@ -1,4 +1,4 @@
-# メソッド粒度バグ予測
+# メソッド粒度バグ予測_実験方法
 ## 手順書
 ### 1. 対象プロジェクトのGitリポジトリの粒度をファイルからメソッドへ変換
 - [git-stein](https://github.com/sh5i/git-stein)を利用。
@@ -33,20 +33,19 @@
 
 ### 4. 学習用・評価用データセットを構築
 1. [AnalyzeRepository](https://github.com/ShoOgino/RepositoryAnalyzer_private)をgit clone。
-2. 実験対象プロジェクトについてフォルダを作り、ディレクトリ構成を下記の通りにする。
+2. AnalyzeRepositoryの実行可能jarを`./gradlew shadowJar`でビルド。
+    - [楠本研サーバthor](https://github.com/kusumotolab/sdllog/blob/master/articles/%E3%82%B5%E3%83%BC%E3%83%90.md)(openjdk version "1.8.0_292")で動作確認済み。
+3. 実験対象プロジェクトについてフォルダを作り、ディレクトリ構成を下記の通りにする。
     - ${実験対象プロジェクトについてのフォルダ}
         - repositoryMethod(メソッド粒度のリポジトリフォルダ)
         - repositoryFile(ファイル粒度のリポジトリフォルダ)
         - bugs.json
-3. AnalyzeRepositoryの実行可能jarを`./gradlew shadowJar`でビルド。
-    - [楠本研サーバthor](https://github.com/kusumotolab/sdllog/blob/master/articles/%E3%82%B5%E3%83%BC%E3%83%90.md)(openjdk version "1.8.0_292")で動作確認済み。
-4. データセット算出タスクを定義したjsonファイルをプロジェクトフォルダ直下に用意。
-    - 例: [egit.json](egit.json)
+4. データセット算出タスクを定義したjsonファイルを${実験対象プロジェクトについてのフォルダ}直下に用意。
     - ${データセット算出タスク}.jsonの構造は下記の通り。
         - isMultiProcess: 並列処理をするかどうか。
         - tasks: タスク集合。
             - (task): データセット算出タスク。下記のプロパティで規定される。
-                - name: String。タスクの名前。算出するデータセットの特徴を書けばよい。egit_R2_trainとか。
+                - name: String。タスクの名前。一応命名規則は${プロジェクト名}_${参照区間}_${trainまたはtest}（例: egit_R2_train)。
                 - priority: int。タスクの優先度。0でOK。
                 - pathProject: String。実験対象プロジェクトについてのフォルダのパス。
                 - granularity: String。予測粒度。"method"でok。
@@ -67,8 +66,9 @@
                 - revisionTargetFile": revisionTargetMethodのファイル粒度リポジトリ版。
                 - intervalRevisionFile_referableCalculatingMetricsIndependentOnFuture: intervalRevisionMethod_referableCalculatingMetricsIndependentOnFutureのファイル粒度リポジトリ版
                 - intervalRevisionFile_referableCalculatingMetricsDependentOnFuture: intervalRevisionMethod_referableCalculatingMetricsDependentOnFutureのファイル粒度リポジトリ版。
+    - ${データセット算出タスク}.jsonの例: [egit.json](egit.json)
 5. java -jar ${ビルドされたjar} ${データセット算出タスク}.json を実行。
-    - 実行後のフォルダ構成は次のようになる。
+    - 実行後のディレクトリ構成は次のようになる。
         - ${実験対象プロジェクトについてのフォルダ}
             - repositoryMethod(メソッド粒度のリポジトリフォルダ)
             - repositoryFile(ファイル粒度のリポジトリフォルダ)
@@ -76,25 +76,24 @@
             - modules
             - output
                 - ${タスクの名前}: モジュールの分析結果が、モジュールごとにjson形式で収められている
-                - ${タスクの名前}.csv: 全モジュールのメトリクスが、csv形式で収められている
+                - ${タスクの名前}.csv: 各モジュールに対するメトリクスが、csv形式で収められている
             - bugs.json
             - ${データセット算出タスク}.json
 
 ### 5. 学習用・評価用データセットに基づいて、バグ予測モデルを構築＋評価
-- [GreedyBugPrediction](https://github.com/ShoOgino/GreedyBugPrediction)を用いる。
+- [GreedyBugPrediction](https://github.com/ShoOgino/MLTool)を用いる。
     - 実行環境について
         - コンテナイメージをファイル(fenrir:/home/s-ogino/bug_prediction.tar)から読み込む。
         - コンテナ内で conda activate mltool3.8 を実行する。
-    - メトリクスベースの予測なら、sourcecode\9_codemetrics_processmetrics.pyに記述された下記の設定を書き換えて実行する。
-        - config.pathsDirSampleTrain: 手順4で算出されたフォルダ(output/${タスクの名前})のうち、学習用のもののパスを指定
-        - config.pathsDirSampleTest: 手順4で算出されたフォルダ(output/${タスクの名前})のうち、評価用のもののパスを指定
-        - config.period4HyperParameterSearch: ハイパーパラメータチューニングに費やす時間。秒単位。1時間くらいでいい。
-        - config.algorithm: 学習アルゴリズム。ランダムフォレストなら"RF"を指定。
+    - RQ2.py, RQ3.pyに記述された下記の設定を書き換えて実行する。
+        - def main()内の dirDatasets: 
+        - def main()内の namesProject: 
+        - def init()内の setPeriod4HyperParameterSearch: ハイパーパラメータチューニングに費やす時間。秒単位。
 
 
 
 ## 実験データ等
-### 対象プロジェクトのリポジトリ一覧
+### リポジトリ一覧
 - cassandra
     - [cassandraFile](https://github.com/apache/cassandra.git)
     - [cassandraMethod](https://github.com/ShoOgino/cassandraMethod202104.git)
@@ -119,7 +118,7 @@
 - wicket
     - [wicketFile](https://github.com/apache/wicket.git)
     - [wicketMethod](https://github.com/ShoOgino/wicketMethod202104.git)
-### 各種コミット一覧
+### リリースコミット一覧
 - cassandra(1, 2, 3, 4) 11ヶ年＋224
     - 最古(root): 2009/05/02 07:57:22
         - file: 1f91e99223b0d1b7ed8390400d4a06ac08e4aa85
@@ -283,6 +282,12 @@
 - fenrir:/home/s-ogino/MLTool/rq2/hyperparameters
 #### Results
 - fenrir:/home/s-ogino/MLTool/rq2/results
+- 各プロジェクト・対象リリースについて10回ずつ実験したときの結果。
+- ConfusionMatrix.png: 予測結果の混同行列
+- parameter: 予測時の、モデルのパラメータ
+- prediction.csv: 予測結果(予測対象メソッド, groundtruth, 予測値)
+- report.json: 予測精度について("1"がバグがある方を予測した場合のrecallなど)
+- RQ2.py: 予測時のスクリプト
 ### RQ3 
 #### Datasets
 - fenrir:/home/s-ogino/MLTool/rq3/datasets
@@ -290,3 +295,9 @@
 - fenrir:/home/s-ogino/MLTool/rq3/hyperparameters
 #### Results
 - fenrir:/home/s-ogino/MLTool/rq3/results
+- 各プロジェクト・対象リリースについて5回ずつ実験したときの結果。
+- ConfusionMatrix.png: 予測結果の混同行列
+- parameter: 予測時の、モデルのパラメータ
+- prediction.csv: 予測結果(予測対象メソッド, groundtruth, 予測値)
+- report.json: 予測精度について("1"がバグがある方を予測した場合のrecallなど)
+- RQ2.py: 予測時のスクリプト
