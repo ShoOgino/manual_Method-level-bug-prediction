@@ -1,5 +1,5 @@
 {
-    "isMultiprocess": false,
+    "isMultiProcess": false,
     "tasks": [
         {
             "name": "R2_r_train",

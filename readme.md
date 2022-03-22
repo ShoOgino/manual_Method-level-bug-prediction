@@ -1,96 +1,103 @@
-# メソッド粒度バグ予測手順書
-## 概要
-1. リポジトリをファイル粒度からメソッド粒度へ変換
-2. メソッド粒度リポジトリにおける、バグ修正コミット・バグ混入コミットを特定
-3. 学習用・評価用データセットを構築
-4. 学習用データセットに基づいて、バグ予測モデルを構築
-5. 評価用データセットに基づいて、バグ予測モデルを評価
+# メソッド粒度バグ予測
+## 手順書
+### 1. 対象プロジェクトのGitリポジトリの粒度をファイルからメソッドへ変換
+- [git-stein](https://github.com/sh5i/git-stein)を利用。
 
 
 
-## 詳細
-### 1. リポジトリをファイル粒度からメソッド粒度へ変換
-- リネーム追跡と関係ないから、俺が変換したやつを使えばOK。
-    - 本ファイル下部の「対象プロジェクトのリポジトリ一覧」を参照。
+### 2. 対象プロジェクトについて、バグ修正コミットを特定
+1. バグレポート一覧ファイルを取得。
+    - 例: eclipseのプロジェクトであるegitを対象とする場合
+        - 下記のコマンドを実行する
+            - python [fetch_bugzilla.py](https://github.com/ShoOgino/szz/blob/master/script/fetch_bugzilla.py) --project egit" 
+                - 実行時のディレクトリ直下に"[reports.json](2/reports.json)"が出力される。
+2. コミット一覧ファイルを取得
+    - 下記のコマンドを実行する
+        - python3 [git_log_to_array.py](https://github.com/ShoOgino/szz/blob/master/script/git_log_to_array.py) --pathRepository method --commitFrom ${コミットID（このコミット以前のコミットを参照する）}
+            - 実行時のディレクトリ直下に"[commits.json](2/commits.json)"が出力される。
+3. バグ修正コミット（バグレポートIDがコミットメッセージに記述されているコミット）を特定
+    - 下記のコマンドを実行する
+        - python3 [find_bug_fixes.py](https://github.com/ShoOgino/szz/blob/master/script/find_bug_fixes.py) --pathCommits commits.json --pathReports reports.json
+            - 実行時のディレクトリ直下に"[bugfixes.json](2/bugfixes.json)"(バグ修正コミット一覧)が出力される。
 
 
 
-### 2. バグ修正コミット・バグ混入コミットを特定
+### 3. バグ混入コミットを特定
 - [SZZアルゴリズムの実装](https://github.com/ShoOgino/szz/tree/master/tools/szz)を用いる。
+    - 下記のコマンドを実行する
+        - java -jar [szz_find_bug_introducers-0.1.jar](https://github.com/ShoOgino/szz/tree/master/tools/szz/build/libs/szz_find_bug_introducers-0.1.jar) -i bugfixes.json -r ${メソッド粒度のリポジトリフォルダ}
+            - 実行時のディレクトリ直下に"results/annotations.json"(バグ混入コミット一覧)が出力される
+        - python reformat.py --pathAnnotation annotations.json
+            - 実行時のディレクトリ直下に"[bugs.json](3/bugs.json)"(バグ混入コミット一覧(フォーマット済))が出力される
 
 
-
-### 3. 学習用・評価用データセットを構築
+### 4. 学習用・評価用データセットを構築
 1. [AnalyzeRepository](https://github.com/ShoOgino/RepositoryAnalyzer_private)をgit clone。
-2. プロジェクトフォルダを作り、ディレクトリ構成を下記の通りにする。
-    - ${プロジェクトフォルダ}
+2. 実験対象プロジェクトについてフォルダを作り、ディレクトリ構成を下記の通りにする。
+    - ${実験対象プロジェクトについてのフォルダ}
         - repositoryMethod(メソッド粒度のリポジトリフォルダ)
         - repositoryFile(ファイル粒度のリポジトリフォルダ)
         - bugs.json
-3. AnalyzeRepositoryのリネーム追跡部分を書き換え。
-4. AnalyzeRepositoryの実行可能jarを`./gradlew shadowJar`でビルド。
+3. AnalyzeRepositoryの実行可能jarを`./gradlew shadowJar`でビルド。
     - [楠本研サーバthor](https://github.com/kusumotolab/sdllog/blob/master/articles/%E3%82%B5%E3%83%BC%E3%83%90.md)(openjdk version "1.8.0_292")で動作確認済み。
-5. データセット算出タスクを定義したjsonをプロジェクトフォルダ直下に用意。
-    - 下記の${データセット算出タスク}.jsonを、pathProjectを書き換えて使えばOK。
-        - [cassandra]()
-        - [eclipse.jdt.core]()
-        - [egit](egit.json)
-        - [jgit]()
-        - [linuxtools]()
-        - [lucene-solr]()
-        - [poi]()
-        - [wicket]()
+4. データセット算出タスクを定義したjsonファイルをプロジェクトフォルダ直下に用意。
+    - 例: [egit.json](egit.json)
     - ${データセット算出タスク}.jsonの構造は下記の通り。
-        - isMultiProcess: 並列処理をするかどうか。trueでいい。
+        - isMultiProcess: 並列処理をするかどうか。
         - tasks: タスク集合。
             - (task): データセット算出タスク。下記のプロパティで規定される。
                 - name: String。タスクの名前。算出するデータセットの特徴を書けばよい。egit_R2_trainとか。
                 - priority: int。タスクの優先度。0でOK。
-                - pathProject: String。プロジェクトフォルダのパス。例えば"C:\\Users\\ShoOgino\\data\\workspace\\MLTool\\datasets\\egit"。
-                - granularity: String。予測粒度。"method"でおｋ．
-                - product: List<String>。モジュールについて、なんのデータを算出するか。["metricsProcess", "metricsCode"]でおｋ。
+                - pathProject: String。実験対象プロジェクトについてのフォルダのパス。
+                - granularity: String。予測粒度。"method"でok。
+                - product: List<String>。メソッドについて、なんのデータを算出するか。複数選択可
+                    - 選択肢
+                        - metricsProcessGiger: Gigerらが提案したプロセスメトリクスセット
+                        - metricsProcessMing: Mingらが提案したプロセスメトリクスセット
+                        - metricsCodeGiger: Gigerらが提案したコードメトリクスセット
+                        - metricsCodeMing: Mingらが提案したコードメトリクスセット
+                        - graphCommit: 個々のコミットについてのメトリクス
                 - revisionTargetMethod: String。method粒度リポジトリのどの時点で存在するメソッドについて、レコードを算出するか。
                 - intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture: List<String>。未来の情報に依存しないメトリクス(LOCとかnumOfCommittersとか)を算出する際に参照可能な、開発履歴の区間。method粒度リポジトリについて。
-                    - intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture[0]: 参照区間の始まり。コミットID。
-                    - intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture[1]: 参照区間の終わり。コミットID。
+                    - intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture[0]: コミットID。参照区間の始まり。
+                    - intervalRevisionMethod_referableCalculatingMetricsIndependentOnFuture[1]: コミットID。参照区間の終わり。
                 - intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture: List<String>。未来の情報に依存するメトリクス(isBuggyとか)を算出する際に参照可能な、開発履歴の区間。method粒度リポジトリについて。
-                    - intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture[0]: 参照区間の始まり。コミットID。
-                    - intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture[1]: 参照区間の終わり。コミットID。
+                    - intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture[0]: コミットID。参照区間の始まり。
+                    - intervalRevisionMethod_referableCalculatingMetricsDependentOnFuture[1]: コミットID。参照区間の終わり。
                 - revisionTargetFile": revisionTargetMethodのファイル粒度リポジトリ版。
                 - intervalRevisionFile_referableCalculatingMetricsIndependentOnFuture: intervalRevisionMethod_referableCalculatingMetricsIndependentOnFutureのファイル粒度リポジトリ版
                 - intervalRevisionFile_referableCalculatingMetricsDependentOnFuture: intervalRevisionMethod_referableCalculatingMetricsDependentOnFutureのファイル粒度リポジトリ版。
-6. java -jar ${ビルドされたjar} ${データセット算出タスク}.json を実行。
+5. java -jar ${ビルドされたjar} ${データセット算出タスク}.json を実行。
     - 実行後のフォルダ構成は次のようになる。
-        - ${プロジェクトフォルダ}
+        - ${実験対象プロジェクトについてのフォルダ}
             - repositoryMethod(メソッド粒度のリポジトリフォルダ)
             - repositoryFile(ファイル粒度のリポジトリフォルダ)
             - commits
             - modules
             - output
                 - ${タスクの名前}: モジュールの分析結果が、モジュールごとにjson形式で収められている
-                - ${タスクの名前}.csv: モジュールのメトリクスが、csv形式で収められている
+                - ${タスクの名前}.csv: 全モジュールのメトリクスが、csv形式で収められている
             - bugs.json
             - ${データセット算出タスク}.json
 
-### 4, 5. データセットに基づいて、バグ予測モデルを構築＋評価
+### 5. 学習用・評価用データセットに基づいて、バグ予測モデルを構築＋評価
 - [GreedyBugPrediction](https://github.com/ShoOgino/GreedyBugPrediction)を用いる。
-    - メトリクスベースの予測なので、sourcecode\9_codemetrics_processmetrics.pyに記述された下記の設定を書き換えて実行する。
-        - config.pathsDirSampleTrain: 手順3で算出されたフォルダ(output/${タスクの名前})のうち、学習用のもののパスを指定
-        - config.pathsDirSampleTest: 手順3で算出されたフォルダ(output/${タスクの名前})のうち、評価用のもののパスを指定
+    - 実行環境について
+        - コンテナイメージをファイル(fenrir:/home/s-ogino/bug_prediction.tar)から読み込む。
+        - コンテナ内で conda activate mltool3.8 を実行する。
+    - メトリクスベースの予測なら、sourcecode\9_codemetrics_processmetrics.pyに記述された下記の設定を書き換えて実行する。
+        - config.pathsDirSampleTrain: 手順4で算出されたフォルダ(output/${タスクの名前})のうち、学習用のもののパスを指定
+        - config.pathsDirSampleTest: 手順4で算出されたフォルダ(output/${タスクの名前})のうち、評価用のもののパスを指定
         - config.period4HyperParameterSearch: ハイパーパラメータチューニングに費やす時間。秒単位。1時間くらいでいい。
-    - 実行環境
-        - 実行環境のdockerimageは5gbあるので直接渡す。
-        - コンテナ内で conda activate mltool3.8 を実行。
+        - config.algorithm: 学習アルゴリズム。ランダムフォレストなら"RF"を指定。
 
 
 
-## 対象プロジェクトのリポジトリ一覧
+## 実験データ等
+### 対象プロジェクトのリポジトリ一覧
 - cassandra
     - [cassandraFile](https://github.com/apache/cassandra.git)
     - [cassandraMethod](https://github.com/ShoOgino/cassandraMethod202104.git)
-- eclipse.jdt.core
-    - [eclipse.jdt.coreFile](https://github.com/eclipse/eclipse.jdt.core.git)
-    - [eclipse.jdt.coreMethod](https://github.com/ShoOgino/eclipse.jdt.coreMethod202104.git)
 - egit
     - [egitFile](https://github.com/eclipse/egit.git)
     - [egitMethod](https://github.com/ShoOgino/egitMethod202104.git)
@@ -100,16 +107,19 @@
 - linuxtools
     - [linuxtoolsFile](https://github.com/eclipse/linuxtools.git)
     - [linuxtoolsMethod](https://github.com/ShoOgino/linuxtoolsMethod202104.git)
-- lucene-solr
-    - [lucene-solrFile](https://github.com/apache/lucene-solr.git)
-    - [lucene-solrMethod](https://github.com/ShoOgino/lucene-solrMethod202104.git)
+- realm-java
+    - [realm-javaFile](https://github.com/realm/realm-java)
+    - [realm-javaMethod](https://github.com/ShoOgino/realm-javaMethod)
+- sonar-java
+    - [sonar-javaFile](https://github.com/SonarSource/sonar-java)
+    - [sonar-javaMethod](https://github.com/ShoOgino/sonar-javaMethod)
 - poi
     - [poiFile](https://github.com/apache/poi.git)
     - [poiMethod](https://github.com/ShoOgino/poiMethod202104.git)
 - wicket
     - [wicketFile](https://github.com/apache/wicket.git)
     - [wicketMethod](https://github.com/ShoOgino/wicketMethod202104.git)
-## 各種コミット一覧
+### 各種コミット一覧
 - cassandra(1, 2, 3, 4) 11ヶ年＋224
     - 最古(root): 2009/05/02 07:57:22
         - file: 1f91e99223b0d1b7ed8390400d4a06ac08e4aa85
@@ -126,23 +136,6 @@
     - 最新(head): 
         - file: e848d47ed171f20ccd8cf5e20d9e188ede85c17c
         - method: 6d97484ca948055cd306e35b9b6e760e616cead8
-- eclipse.jdt.core 19ヶ年＋127日
-    - 1: 古すぎてgithubに記録されていない
-    - root: 2001/06/05 16:17:58
-        - file: be6c0d208933ac936a6ccb6c66b03d3da13e3796
-        - method: a7fce940d379c2e5e244d9ddaf1acb77c5df6fe5
-    - 2: 2002/06/26 17:54:29 +2518 +1/0/21
-        - file: d0dd6c20e4958b2e8f8c4f7f60f4a15fff6ca500
-        - method: ba370a9c7ffb041448d1d6f1b3ed0bcf4b2f36f5
-    - 3: 2004/06/24 23:13:09 +7927 +3/0/21
-        - file: c5f94c1be0604760b768518fd2d7014d6ae18052
-        - method: 7c3c5b149a5b757dafc9eee38cc2d25bd109519c
-    - 4: 2010/07/27 02:37:24 +18144
-        - file: 3b4f046b547174509da38e0b0a4f7bf6125e51ec
-        - method: ebc23690a9bf0afac24abe2147261af0fbe9fa10
-    - head: 
-        - file: 145fe3a737c63e3d079ddf2fc46dc2640a129635
-        - method: 4cc601fa3a7ae1b39957dc3e4ff408a522b0c323
 - egit 11ヶ年＋6日
     - root: 2009/09/29 18:18:28
         - file: dfbdc456d8645fc0c310b5e15cf8d25d8ff7f84b
@@ -215,32 +208,42 @@
     - head: 
         - file: 3af94afe978305f38eed0c6d8eafd7653df0d01f
         - method: 9524114075dd38ceb913a610a4b56da01d6d1bb4
-- lucene-solr(1, ..., 8) 19ヶ年＋32日
-    - 1: 古すぎてgithubに記録されていない。
-    - root: 2001/09/11 21:44:36 
-        - file: a0e7ee9d0d12370e8d2b5ae0a23b6e687e018d85
-        - method: a0e7ee9d0d12370e8d2b5ae0a23b6e687e018d85
-    - 2: 2006/05/26 16:50:37 +2144 +5/
-        - file: 191558261298d2dcf24fdbd91b1d1727e69ea99c
-        - method: b3f6ea5a814f05e9e8551b965e18567de814b62b
-    - 3: 2009/11/22 13:59:47 +7065
-        - file: 2e244caa1707bc82b7c487cc53ea9ebc4564c6fb
-        - method: deecaac786bf460424c56eae72ac0d7f0305077d
-    - 4: 2012/08/06 10:33:48 +14395
-        - file: 4dc925bf4e198487ec455c5881d0c14030f8dd71
-        - method: 0fc2819690aa412322019e18c052bcff41e5d94d
-    - 5: 2015/02/14 02:37:34 +14395
-        - file: 429588097cdd0ec86dbf960d49bb1c0ac5d78b72
-        - method: 51b92ffe30c50bb08699200b62c40420378ac3df
-    - 6: 2016/04/01 05:40:50 +24746
-        - file: cf7967cc467d9d697d520fcdf92fcdb52f7ddd4e
-        - method: 9bd00e9af390947b2751706503ba0d2f0b28da6d
-    - 7: 2017/09/08 17:39:12 +28526
-        - file: a5402f68631768bae57d923613211128de077982
-        - method: 14162b1f8f2266547b5e1059f37c2efcf8981ea2
+- realm-java
+    - root:
+        - file: b03c621431fdc7e6e43566eeef505a32f5f6ce83
+    - 1: 
+        - file: eef492341a17351dc671b296bf7f1cd2c2ed32a4
+    - 2: 
+        - file: 1f19a05f820c1e43a9a0e38d8e32b0d96920df7f
+    - 3: 
+        - file: 66fb375b32b7db660c1d06fc7e27bf708d8cebab
+    - 4: 
+        - file: e26255b9c5248620861565eb3caf7c908c4f8277
+    - 5: 
+        - file: 8740eb6ce5bfc8536be2b480988a6212f2ce8466
+    - 6: 
+        - file: 8a022573a5b095c2ec887720bd73098475829766
+    - 7: 
+        - file: 5e1cb707bf37a4c5fa03b45cd5a4fde39fed146d
     - head: 
-        - file: 4bbf2391da3dc23a7fade0d194853a3b82ac30dc
-        - method: 2d062b9b9bc669298da80d215e455cf53377c8ce
+        - file: fd3446d65856fc46bebf1e0632dca3b8260e2d12
+- sonar-java
+    - root:
+        - file: 5393bd3cc71e716dcd946232f5d43297d5889357
+    - 1: 
+        - file: 5ac4cf695248bc7385cb3377216cd86340bda0b0
+    - 2: 
+        - file: fb4e10dcf17447ecea699934cdef0cf2009b1a52
+    - 3: 
+        - file: 65396a609ddface8b311a6a665aca92a7da694f1
+    - 4: 
+        - file: b653c6c8640ab3d6015d036a060f58e027a653af
+    - 5: 
+        - file: fe9584c9f7812edc46f32d29440fc81b85a597a4
+    - 6: 
+        - file: 931433c0510b161974d4844679f7bf3c73bb3e37
+    - head: 
+        - file: a4121b68b68740704a816ef7ad6636b61ab7ca55
 - poi 18ヶ年＋254日
     - 1: 古すぎてgithubに記録されていない
     - root: 2002/01/31 02:22:28
@@ -273,3 +276,17 @@
     - head: 
         - file: 048e5681df960018722237ee6254273e839b5fd2
         - method: 2f1546f5f9ba8fc9fe71253675796f74fea5e953
+### RQ2
+#### Datasets
+- fenrir:/home/s-ogino/MLTool/rq2/datasets
+#### Hyperparameters
+- fenrir:/home/s-ogino/MLTool/rq2/hyperparameters
+#### Results
+- fenrir:/home/s-ogino/MLTool/rq2/results
+### RQ3 
+#### Datasets
+- fenrir:/home/s-ogino/MLTool/rq3/datasets
+#### Hyperparameters
+- fenrir:/home/s-ogino/MLTool/rq3/hyperparameters
+#### Results
+- fenrir:/home/s-ogino/MLTool/rq3/results
